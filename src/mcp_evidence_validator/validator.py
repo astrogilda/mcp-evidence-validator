@@ -138,6 +138,18 @@ def validate_batch(
 
     for obs in obs_list:
         tool_name = obs.get("tool")
+        # Validate and record whatever recipe the evidence states, before the
+        # tool lookup. A recipe says how a hash was produced, so an unknown one
+        # is a defect even on an observation whose tool was never declared, and
+        # the summary must count every recipe the evidence holds -- not only
+        # the ones sitting on declared tools.
+        stated_recipe = obs.get("contract_recipe")
+        observed_recipe = (
+            check_recipe(stated_recipe) if stated_recipe is not None else None
+        )
+        if observed_recipe is not None:
+            recipes_in_use.add(observed_recipe)
+
         decl = tools.get(tool_name)
         if decl is None:
             findings.append(
@@ -154,19 +166,24 @@ def validate_batch(
         recipes_in_use.add(tool_recipe)
         current = build_contract(decl, tool_recipe)
         observed_hash = obs.get("contract_hash")
-        stated_recipe = obs.get("contract_recipe")
-        # An observation that states no recipe is read the way a silent
-        # declaration is: as recipe 1, the coverage every artifact written
-        # before 0.4.0 was hashed under. Treating silence as "unknown" skipped
-        # this guard entirely and reported the two hashes as contract drift,
-        # which is a false accusation against an intact ledger.
-        observed_recipe = check_recipe(stated_recipe or CONTRACT_RECIPE_LEGACY)
-        recipes_in_use.add(observed_recipe)
+        # An observation that states no recipe but carries a hash is read the
+        # way a silent declaration is: as recipe 1, the coverage every artifact
+        # written before 0.4.0 was hashed under. Treating silence as "unknown"
+        # skipped this guard entirely and reported the two hashes as contract
+        # drift, which is a false accusation against an intact ledger.
+        #
+        # A hash-less observation (scope only) makes no claim about a recipe,
+        # so nothing is inferred for it. A finding that a hash was "computed
+        # under recipe 1" would describe a hash the evidence does not carry,
+        # and check 3 already judges those observations on their arguments.
+        if observed_hash is not None and observed_recipe is None:
+            observed_recipe = check_recipe(CONTRACT_RECIPE_LEGACY)
+            recipes_in_use.add(observed_recipe)
         anns = ann_by_tool.get(tool_name, [])
         bound = any(a.get("bound_contract") == current for a in anns)
 
         comparable = True
-        if observed_recipe != tool_recipe:
+        if observed_hash is not None and observed_recipe != tool_recipe:
             # The two sides were hashed under different recipes, so a
             # comparison would report drift that is really a recipe change.
             # Refuse the verdict instead of guessing which side is right.

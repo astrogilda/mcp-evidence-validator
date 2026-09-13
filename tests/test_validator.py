@@ -313,6 +313,103 @@ def test_a_silent_observation_is_read_as_the_legacy_recipe():
     assert summary_legacy["contract_recipes"] == ["1"]
 
 
+def test_a_scope_only_observation_states_no_recipe_to_interpret():
+    """An observation carrying no contract_hash makes no claim about a recipe.
+
+    Read as "silent", it was assigned recipe 1 and compared against the
+    declaration, so a scope-only observation on a recipe-2 declaration came
+    back as a high-severity recipe_mismatch asserting that a hash the evidence
+    never carried had been "computed under recipe 1" - and the summary counted
+    that recipe as if the ledger held one. A recipe exists to interpret a
+    hash; with no hash there is nothing to infer and nothing to refuse.
+    """
+    tool = dict(DECLARED["tools"][0], contract_recipe="2")
+    decl = dict(DECLARED, contract_recipe="2", tools=[tool])
+    decl["annotations"] = [
+        dict(a, bound_contract=build_contract(tool, "2"))
+        for a in DECLARED["annotations"]
+    ]
+    obs = make_observed(
+        [
+            {
+                "index": 1,
+                "observed_at": "2026-08-02T12:00:00Z",
+                "tool": "get_forecast",
+                # No contract_hash at all: scope-only observation.
+                "args": {"city": "Townsville"},
+            }
+        ]
+    )
+
+    findings, summary = validate_batch(decl, obs)
+    assert findings == []
+    assert summary["contract_recipes"] == ["2"]
+
+    # Control: such an observation is still judged on its arguments, so
+    # dropping the recipe claim did not make it unpoliced.
+    outside = make_observed(
+        [
+            {
+                "index": 1,
+                "observed_at": "2026-08-02T12:00:00Z",
+                "tool": "get_forecast",
+                "args": {"city": "Townsville", "api_token": "x"},
+            }
+        ]
+    )
+    findings_out, summary_out = validate_batch(decl, outside)
+    assert [f["check"] for f in findings_out] == ["scope_violation"]
+    assert summary_out["contract_recipes"] == ["2"]
+
+
+def test_an_undeclared_tool_still_declares_its_recipe():
+    """An observation whose tool was never declared still states its recipe.
+
+    Recipe handling used to run after the undeclared-tool branch returned, so
+    that observation was left out of the summary: the ledger was described as
+    holding only the declaration's recipe while the evidence also held a hash
+    made under another one.
+    """
+    tool = dict(DECLARED["tools"][0], contract_recipe="2")
+    decl = dict(DECLARED, contract_recipe="2", tools=[tool])
+    obs = make_observed(
+        [
+            {
+                "index": 1,
+                "observed_at": "2026-08-02T12:00:00Z",
+                "tool": "never_declared",
+                "args": {},
+                "contract_recipe": "1",
+                "contract_hash": build_contract(tool, "1"),
+            }
+        ]
+    )
+
+    findings, summary = validate_batch(decl, obs)
+    assert [f["check"] for f in findings] == ["unknown_tool"]
+    assert summary["contract_recipes"] == ["1", "2"]
+
+
+def test_an_unknown_recipe_is_rejected_even_on_an_undeclared_tool():
+    """The same early return let an unknown recipe skip check_recipe."""
+    import pytest
+
+    decl = dict(DECLARED, contract_recipe="2")
+    obs = make_observed(
+        [
+            {
+                "index": 1,
+                "observed_at": "2026-08-02T12:00:00Z",
+                "tool": "never_declared",
+                "args": {},
+                "contract_recipe": "9",
+            }
+        ]
+    )
+    with pytest.raises(ValueError, match="unknown contract recipe"):
+        validate_batch(decl, obs)
+
+
 def test_cli_reports_the_recipe_the_evidence_carries(tmp_path, capsys):
     tool = dict(DECLARED["tools"][0], contract_recipe="2")
     declared = {
