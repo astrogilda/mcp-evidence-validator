@@ -1,0 +1,32 @@
+{
+  "observations": [
+    {
+      "args": {
+        "path": "sample.txt"
+      },
+      "contract_hash": "sha256:4179ea58e90e8863ce03d4d598068d8a6b70c422a7bae7e274afa553e6fb784d",
+      "index": 1,
+      "observed_at": "2026-09-13T11:57:54Z",
+      "tool": "read_text_file"
+    },
+    {
+      "args": {
+        "path": "pixel.png"
+      },
+      "contract_hash": "sha256:3858b439c9f08013fa561f47de5901359dcad2d04c962d1ee065e658750e2f29",
+      "index": 2,
+      "observed_at": "2026-09-13T11:57:54Z",
+      "tool": "read_media_file"
+    },
+    {
+      "args": {
+        "path": "sample.txt"
+      },
+      "contract_hash": "sha256:3b5457ad2e827cd84c2597bb7b2a0f1c5affad3884072aa9a349976566c653b5",
+      "index": 3,
+      "observed_at": "2026-09-13T11:57:54Z",
+      "tool": "get_file_info"
+    }
+  ],
+  "server": "secure-filesystem-server"
+}

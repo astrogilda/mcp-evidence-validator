@@ -1,0 +1,76 @@
+{
+  "calls": [
+    {
+      "args": {
+        "path": "/tmp/mcp-capture-root/sample.txt"
+      },
+      "contract_hash": "sha256:4179ea58e90e8863ce03d4d598068d8a6b70c422a7bae7e274afa553e6fb784d",
+      "index": 1,
+      "observed_at": "2026-09-13T11:57:54Z",
+      "outcome": {
+        "arguments": {
+          "path": "/tmp/mcp-capture-root/sample.txt"
+        },
+        "content_types": [
+          "text"
+        ],
+        "isError": false,
+        "result_preview": "capture fixture\n",
+        "tool": "read_text_file"
+      },
+      "rel_args": {
+        "path": "sample.txt"
+      },
+      "tool": "read_text_file"
+    },
+    {
+      "args": {
+        "path": "/tmp/mcp-capture-root/pixel.png"
+      },
+      "contract_hash": "sha256:3858b439c9f08013fa561f47de5901359dcad2d04c962d1ee065e658750e2f29",
+      "index": 2,
+      "observed_at": "2026-09-13T11:57:54Z",
+      "outcome": {
+        "arguments": {
+          "path": "/tmp/mcp-capture-root/pixel.png"
+        },
+        "content_types": [
+          "image"
+        ],
+        "isError": false,
+        "result_preview": "",
+        "tool": "read_media_file"
+      },
+      "rel_args": {
+        "path": "pixel.png"
+      },
+      "tool": "read_media_file"
+    },
+    {
+      "args": {
+        "path": "/tmp/mcp-capture-root/sample.txt"
+      },
+      "contract_hash": "sha256:3b5457ad2e827cd84c2597bb7b2a0f1c5affad3884072aa9a349976566c653b5",
+      "index": 3,
+      "observed_at": "2026-09-13T11:57:54Z",
+      "outcome": {
+        "arguments": {
+          "path": "/tmp/mcp-capture-root/sample.txt"
+        },
+        "content_types": [
+          "text"
+        ],
+        "isError": false,
+        "result_preview": "size: 16\ncreated: Sun Sep 13 2026 21:56:50 GMT+1000 (Australian Eastern Standard Time)\nmodified: Sun Sep 13 2026 21:57:42 GMT+1000 (Australian Eastern Standard Time)\naccessed: Sun Sep 13 2026 21:57:54 GMT+1000 (Australian Eastern Standard Time)\nisDirectory: false\nisFile: true\npermissions: 664",
+        "tool": "get_file_info"
+      },
+      "rel_args": {
+        "path": "sample.txt"
+      },
+      "tool": "get_file_info"
+    }
+  ],
+  "package": "@modelcontextprotocol/server-filesystem",
+  "root": "/tmp/mcp-capture-root",
+  "version": "2026.8.31"
+}

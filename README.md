@@ -43,7 +43,7 @@ No dependencies — Python 3.10+ standard library only.
 ## Quick start
 
 After installing from source above, run these commands from the repository root
-so the bundled fictional example files are available.
+so the bundled example files are available.
 
 ```bash
 # Compare a declared manifest against observed runtime records, and write the
@@ -86,6 +86,32 @@ Or run as a module: `python -m mcp_evidence_validator validate --declared ...`
 
 Output is a machine-readable evidence record with a `chain` of hash-linked entries plus a human-readable `findings` summary. The `verify` subcommand replays the chain, checks the published `prev_hash` and `index` of every block against that walk, and compares the head it reaches to the one you pass in. Try editing `evidence.json` and re-verifying against the original head: the edit is refused.
 
+## Covered server types
+
+| Example | Server | Declared | Observed | Shows |
+|---------|--------|----------|----------|-------|
+| `examples/fictional-server-*.json` | fictional weather server | — | — | all three checks against constructed data |
+| `examples/filesystem-server-*.json` | `@modelcontextprotocol/server-filesystem` | 2026.1.14 | 2026.8.31 | one real contract mutation between two releases |
+
+The second pair is a real capture, not a constructed one:
+
+```bash
+mcp-ev-validate validate --declared examples/filesystem-server-declared.json --observed examples/filesystem-server-observed.json --out fs-evidence.json --head-out fs-evidence.head
+```
+
+It reports a single finding. `read_media_file`'s contract moved between the two versions in a way that matters to a caller: the description went from "Read an image or audio file" to reading *any* file, "returned as an embedded resource" when it is neither image nor audio, and the output schema gained an `anyOf` branch whose second case is a `resource` carrying a `blob`, while the first case lost `blob` from its `type` enum. A client that bound a handler to the earlier output shape at declaration time is now holding a stale annotation; the check says so, and the two hashes it prints are the two real contracts.
+
+The three calls in the observed file were made against the running server and every `contract_hash` is the validator's own fingerprint over what that server served. The raw replies are committed in `examples/captures/` and `tests/test_filesystem_example.py` recomputes each hash from them, so the pair cannot silently drift from its evidence. To recapture:
+
+```bash
+python3 examples/capture_mcp_server.py \
+    --package @modelcontextprotocol/server-filesystem \
+    --declared-version 2026.1.14 --observed-version 2026.8.31 \
+    --root /tmp/mcp-capture-root --label filesystem-server
+```
+
+That needs Node.js (`npx`) and registry access. The committed files are static, so neither the tests nor the validator need either.
+
 ## Concepts
 
 | Term | Meaning |
@@ -121,7 +147,7 @@ Output is a machine-readable evidence record with a `chain` of hash-linked entri
 
 ## Project status
 
-This is the public face of an evidence-engineering programme. The core ideas are exercised in production-grade systems elsewhere in the organisation; this repository is the open, reference implementation. It contains no proprietary code and no real client data. All examples are fictional.
+This is the public face of an evidence-engineering programme. The core ideas are exercised in production-grade systems elsewhere in the organisation; this repository is the open, reference implementation. It contains no proprietary code and no client data. The fictional example is constructed to exercise the checks; the filesystem example is a capture of a public open-source MCP reference server, committed together with the raw replies it was derived from.
 
 ## Security
 

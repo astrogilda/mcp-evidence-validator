@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `examples/filesystem-server-declared.json` and `examples/filesystem-server-observed.json`: a declared-vs-observed pair captured from a real MCP server, `@modelcontextprotocol/server-filesystem`, declaring `2026.1.14` and observing `2026.8.31`. One finding: `read_media_file`'s contract changed between the two releases (closes [#17](https://github.com/narko4u/mcp-evidence-validator/issues/17)).
+- `examples/capture_mcp_server.py`: starts a published MCP server over stdio, records `tools/list` and real `tools/call` replies, and writes the pair. The raw replies are committed under `examples/captures/`.
+- `tests/test_filesystem_example.py`: recomputes every contract hash in the pair from the raw captures, runs the pair through the validator and the CLI, and pins what the contract does not cover (`outputSchema` changed in this example while `input_schema` did not).
+
+### Changed
+- README: covered server types listed with their provenance; the project-status note no longer claims every example is fictional, since one is now a real capture.
+
 ## [0.3.0] - 2026-09-13
 
 ### Fixed
