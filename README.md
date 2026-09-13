@@ -42,25 +42,49 @@ No dependencies — Python 3.10+ standard library only.
 
 ## Quick start
 
+After installing from source above, run these commands from the repository root
+so the bundled fictional example files are available.
+
 ```bash
 # Compare a declared manifest against observed runtime records, and write the
 # head digest of the resulting ledger to a separate file
-mcp-ev-validate validate \
-    --declared examples/fictional-server-declared.json \
-    --observed examples/fictional-server-observed.json \
-    --out /tmp/evidence.json \
-    --head-out /tmp/evidence.head
+mcp-ev-validate validate --declared examples/fictional-server-declared.json --observed examples/fictional-server-observed.json --out evidence.json --head-out evidence.head
 
 # Audit a ledger later, against the head you kept elsewhere
-mcp-ev-validate verify --ledger /tmp/evidence.json \
-    --expected-head "$(cat /tmp/evidence.head)"
+mcp-ev-validate verify --ledger evidence.json --expected-head "$(cat evidence.head)"
 ```
 
-`--expected-head` is required. Keep the head where the ledger's holder cannot reach it: a signature, a commit in another repository, a transparency log entry, or a line in the auditor's own notes.
+`--expected-head` is required. Keep the head where the ledger's holder cannot reach it: a signature, a commit in another repository, a transparency log entry, or a line in the auditor's own notes. Both files land in the current directory, so the commands run unchanged on Windows.
+
+The `validate` command prints a JSON report. Its `summary` contains:
+
+```json
+{
+  "declared_tools": 2,
+  "observations": 3,
+  "findings": 2,
+  "checks": [
+    "bound_unmutated",
+    "contract_mutated",
+    "scope_violation"
+  ]
+}
+```
+
+The report's `findings` array describes the deliberately undeclared `admin_token` argument in observation 2 and the changed contract in observation 3. Validation exits **0** when the report is produced, even when it contains findings; inspect the report to assess the observed behaviour.
+
+Record the head somewhere the ledger file's holder cannot edit. `verify` checks the chain against that head and, for this example, exits **0** with:
+
+```text
+ledger intact: 3 blocks, chain verified against the expected head
+block types: {"declaration": 1, "observation_batch": 1, "report": 1}
+```
+
+`verify` exits **1** when the ledger does not reach the expected head, and **2** when it is invoked without one. It checks the ledger against the head you pass in, so it does not vouch for the observations being free of findings: a chain read on its own proves ordering to whoever holds the file, and nothing to anyone else.
 
 Or run as a module: `python -m mcp_evidence_validator validate --declared ...`
 
-Output is a machine-readable evidence record with a `chain` of hash-linked entries plus a human-readable `findings` summary. The `verify` subcommand replays the chain, checks the published `prev_hash` and `index` of every block against that walk, and compares the head it reaches to the one you pass in. Try editing `/tmp/evidence.json` and re-verifying against the original head.
+Output is a machine-readable evidence record with a `chain` of hash-linked entries plus a human-readable `findings` summary. The `verify` subcommand replays the chain, checks the published `prev_hash` and `index` of every block against that walk, and compares the head it reaches to the one you pass in. Try editing `evidence.json` and re-verifying against the original head: the edit is refused.
 
 ## Concepts
 
