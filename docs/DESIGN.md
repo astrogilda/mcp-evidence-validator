@@ -50,6 +50,28 @@ A contract is the canonical, hashable form of a declaration. We fingerprint the 
 
 If the re-derived hash differs from the bound hash, **the contract has mutated**.
 
+### 2.2.1 Contract recipes and migration
+
+A hash answers "has this declaration changed?" only together with the set of declaration fields that went into it. That set is the **recipe**, and a contract hash is meaningless without it: the same declaration hashes two different ways under two recipes, and neither is wrong.
+
+The recipe is therefore carried in the evidence, not assumed:
+
+| Recipe | Fields folded into the hash |
+|--------|-----------------------------|
+| `1` | `name`, `description`, `input_schema`, `permissions` |
+| `2` | recipe 1, plus `output_schema` and the tool's MCP `annotations` hints |
+
+Why recipe 2 exists: recipe 1 could not see a server that changed only what it returns, or only the hints it publishes about its own side effects (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`). A tool whose input schema and description are stable while its output schema widens — or while it starts declaring itself destructive — reported healthy. That is issue #23, and it is pinned as a test rather than fixed quietly.
+
+Two rules keep the migration honest:
+
+1. **Legacy keeps its meaning.** A declaration that states no recipe is hashed under recipe 1, exactly as it was before recipes existed. Every ledger issued before v0.4.0 still verifies and nothing already published changes meaning; new declarations opt up by stating `contract_recipe`.
+2. **Recipes are never mixed.** If an observation states a different recipe from the declaration's, the comparison is refused with a `recipe_mismatch` finding instead of reported as drift. Two hashes computed different ways are not evidence of change in either direction, and quietly re-deriving one side to force a verdict would be worse than the gap it closes.
+
+Precedence: an explicit argument to `build_contract`, then the tool's own `contract_recipe`, then the manifest's, then recipe 1.
+
+Contract hashes in the committed example pair were migrated by re-deriving them from the raw `tools/list` captures (`examples/rebuild_pair.py`), never by copying stored values. That is the general migration path: raw captures are the source of truth, pairs are a view of them, and a pair that disagrees with its captures fails the test suite.
+
 ### 2.3 Observations
 
 An observation is a runtime fact captured at or around a tool call:
@@ -76,6 +98,7 @@ A finding is a measured gap. Three prototype checks:
 | Bound and unmutated | annotation exists AND observed contract hash == bound hash | **healthy baseline** |
 | Bound, contract mutated | annotation exists BUT observed contract hash != bound hash | **finding: stale annotation** |
 | Observed outside declared scope | tool call uses tools/args/permissions not in the declaration | **finding: scope violation** |
+| Recipe mismatch | observation states a recipe other than the declaration's | **finding: check could not run** |
 
 A finding is never an accusation. It is a signal to schedule review: if an annotation is stale, re-verify it; if a scope is violated, decide whether the declaration or the runtime is wrong.
 
@@ -92,6 +115,8 @@ Properties:
 - Any mutation to a past record changes its hash and therefore every later block.
 - Verification is O(n) and requires only the ledger file.
 - The ledger can be anchored externally (published hash, timestamped) for non-repudiation.
+- Records carry how their own hashes were produced: a declaration states its `contract_recipe`, and observations may state the recipe their `contract_hash` was computed under. A ledger therefore says what its contract hashes mean, rather than leaving that to whoever reads it later.
+- Format version `0.3` (was `0.2`). The bump is additive: block shape, the chain, and the dump/load round trip are unchanged, and a ledger written under `0.2` still loads and still verifies. The separate assertion a `0.2` ledger makes — that its records state no recipe and were therefore hashed under recipe 1 — is preserved by that default.
 
 ## 3. Architecture
 
@@ -115,12 +140,15 @@ Properties:
           +------------------+
 ```
 
-Components in the prototype:
+Components:
 
-- `prototype/validate.py` - CLI entry point; runs checks and emits the ledger.
-- `prototype/ledger.py` - hash-chain append and verify.
-- `prototype/fingerprint.py` - canonical JSON fingerprinting.
-- (Roadmap) `prototype/observer.py` - lightweight MCP client wrapper that records observations.
+- `src/mcp_evidence_validator/cli.py` - CLI entry point; runs checks and emits the ledger.
+- `src/mcp_evidence_validator/validator.py` - declared-vs-observed checks, contract recipes.
+- `src/mcp_evidence_validator/ledger.py` - hash-chain append and verify.
+- `src/mcp_evidence_validator/fingerprint.py` - canonical JSON fingerprinting.
+- `examples/capture_mcp_server.py` - starts a real MCP server, captures its replies, derives an example pair.
+- `examples/rebuild_pair.py` - re-derives a committed pair from its captures, e.g. when migrating recipes.
+- (Roadmap) a lightweight MCP client wrapper that records observations from a live call path.
 
 ## 4. Security model
 

@@ -58,7 +58,11 @@ REPO = HERE.parent
 sys.path.insert(0, str(REPO / "src"))
 
 from mcp_evidence_validator.fingerprint import fingerprint  # noqa: E402
-from mcp_evidence_validator.validator import build_contract  # noqa: E402
+from mcp_evidence_validator.validator import (  # noqa: E402
+    CONTRACT_RECIPE_CURRENT,
+    CONTRACT_RECIPE_FIELDS,
+    build_contract,
+)
 
 # A real 1x1 PNG, so the media tool has something genuine to read.
 PNG_1X1 = base64.b64decode(
@@ -68,14 +72,25 @@ PNG_1X1 = base64.b64decode(
 SAMPLE_TEXT = "capture fixture\n"
 
 
-def to_declared(tool):
-    """Map an MCP tool object onto the repository's declaration shape."""
-    return {
+def to_declared(tool, recipe=CONTRACT_RECIPE_CURRENT):
+    """Map an MCP tool object onto the repository's declaration shape.
+
+    ``recipe`` 2 also carries the tool's ``outputSchema`` and its MCP annotation
+    hints, so both are inside the contract hash. ``recipe`` 1 is the legacy
+    four-field shape, kept because declarations hashed under it must keep
+    hashing to the same values.
+    """
+    declared = {
         "name": tool["name"],
         "description": tool.get("description", ""),
         "input_schema": tool.get("inputSchema", {}),
         "permissions": tool.get("permissions", []),
     }
+    if recipe == "2":
+        declared["output_schema"] = tool.get("outputSchema", {})
+        declared["annotations"] = tool.get("annotations", {})
+    declared["contract_recipe"] = recipe
+    return declared
 
 
 def sha256_file(path):
@@ -202,7 +217,7 @@ def capture_tools(package, version, root):
         session.close()
 
 
-def capture_calls(package, version, root, calls):
+def capture_calls(package, version, root, calls, recipe=CONTRACT_RECIPE_CURRENT):
     session = Session(package, version, root).start()
     try:
         served = {tool["name"]: tool for tool in session.tools()}
@@ -224,13 +239,81 @@ def capture_calls(package, version, root, calls):
                         else value
                         for key, value in arguments.items()
                     },
-                    "contract_hash": build_contract(to_declared(served[name])),
+                    "contract_hash": build_contract(to_declared(served[name], recipe)),
+                    "contract_recipe": recipe,
                     "outcome": outcome,
                 }
             )
         return records
     finally:
         session.close()
+
+
+def build_pair(
+    declared_raw,
+    observed_raw,
+    calls_raw,
+    package,
+    declared_version,
+    recipe=CONTRACT_RECIPE_CURRENT,
+):
+    """Derive the declared/observed pair from raw server captures.
+
+    Every contract hash here is recomputed from the captured ``tools/list``
+    replies, never copied from a stored value: the served manifests are the
+    source of truth and the pair is a view of them. That is what lets the pair
+    be rebuilt offline under a different recipe without re-running the server.
+    """
+    calls = [record["tool"] for record in calls_raw["calls"]]
+    declared_tools = {
+        tool["name"]: to_declared(tool, recipe) for tool in declared_raw["tools"]
+    }
+    observed_tools = {
+        tool["name"]: to_declared(tool, recipe) for tool in observed_raw["tools"]
+    }
+
+    missing = [name for name in calls if name not in declared_tools]
+    if missing:
+        raise SystemExit(
+            f"observed call(s) not declared at {declared_version}: {missing}"
+        )
+
+    declared = {
+        "server": declared_raw["server_info"].get("name", package),
+        "declared_at": declared_raw["captured_at"],
+        "contract_recipe": recipe,
+        "tools": [declared_tools[name] for name in sorted(declared_tools)],
+        "annotations": [
+            {
+                "id": f"ann-{name}",
+                "tool": name,
+                "statement": (
+                    "client bound to the contract declared at "
+                    f"{package}@{declared_version}"
+                ),
+                "bound_contract": build_contract(declared_tools[name], recipe),
+            }
+            for name in calls
+        ],
+    }
+    observed = {
+        "server": observed_raw["server_info"].get("name", package),
+        "contract_recipe": recipe,
+        "observations": [
+            {
+                "index": record["index"],
+                "observed_at": record["observed_at"],
+                "tool": record["tool"],
+                "args": record["rel_args"],
+                "contract_hash": build_contract(
+                    observed_tools[record["tool"]], recipe
+                ),
+                "contract_recipe": recipe,
+            }
+            for record in calls_raw["calls"]
+        ],
+    }
+    return declared, observed
 
 
 def write_json(path, payload):
@@ -254,6 +337,12 @@ def main():
         help="tool to call against the observed version (repeatable)",
     )
     parser.add_argument("--examples-dir", default=str(HERE))
+    parser.add_argument(
+        "--recipe",
+        default=CONTRACT_RECIPE_CURRENT,
+        choices=sorted(CONTRACT_RECIPE_FIELDS),
+        help="contract recipe to hash the pair under (default: current)",
+    )
     args = parser.parse_args()
 
     calls = args.call or ["read_text_file", "read_media_file", "get_file_info"]
@@ -270,45 +359,23 @@ def main():
     declared_raw = capture_tools(args.package, args.declared_version, root)
     print(f"capturing {args.package}@{args.observed_version} (observed) ...")
     observed_raw = capture_tools(args.package, args.observed_version, root)
-    calls_raw = capture_calls(args.package, args.observed_version, root, calls)
+    calls_raw = capture_calls(
+        args.package, args.observed_version, root, calls, args.recipe
+    )
 
-    declared_tools = {tool["name"]: to_declared(tool) for tool in declared_raw["tools"]}
-    observed_tools = {tool["name"]: to_declared(tool) for tool in observed_raw["tools"]}
+    declared, observed = build_pair(
+        declared_raw,
+        observed_raw,
+        {"calls": calls_raw},
+        args.package,
+        args.declared_version,
+        args.recipe,
+    )
 
-    missing = [name for name in calls if name not in declared_tools]
-    if missing:
-        raise SystemExit(f"observed call(s) not declared at {args.declared_version}: {missing}")
-
-    declared = {
-        "server": declared_raw["server_info"].get("name", args.package),
-        "declared_at": declared_raw["captured_at"],
-        "tools": [declared_tools[name] for name in sorted(declared_tools)],
-        "annotations": [
-            {
-                "id": f"ann-{name}",
-                "tool": name,
-                "statement": (
-                    "client bound to the contract declared at "
-                    f"{args.package}@{args.declared_version}"
-                ),
-                "bound_contract": build_contract(declared_tools[name]),
-            }
-            for name in calls
-        ],
-    }
-    observed = {
-        "server": observed_raw["server_info"].get("name", args.package),
-        "observations": [
-            {
-                "index": record["index"],
-                "observed_at": record["observed_at"],
-                "tool": record["tool"],
-                "args": record["rel_args"],
-                "contract_hash": record["contract_hash"],
-            }
-            for record in calls_raw
-        ],
-    }
+    declared_tools = {tool["name"]: to_declared(tool, args.recipe)
+                      for tool in declared_raw["tools"]}
+    observed_tools = {tool["name"]: to_declared(tool, args.recipe)
+                      for tool in observed_raw["tools"]}
 
     declared_path = examples / f"{label}-declared.json"
     observed_path = examples / f"{label}-observed.json"
@@ -322,13 +389,15 @@ def main():
     raw_calls_hash = write_json(raw_calls, {"package": args.package,
                                             "version": args.observed_version,
                                             "root": str(root),
+                                            "contract_recipe": args.recipe,
                                             "calls": calls_raw})
 
     drift = sorted(
         name
         for name in observed_tools
         if name in declared_tools
-        and build_contract(observed_tools[name]) != build_contract(declared_tools[name])
+        and build_contract(observed_tools[name], args.recipe)
+        != build_contract(declared_tools[name], args.recipe)
     )
     print()
     print(f"declared  {args.package}@{args.declared_version}: "

@@ -20,7 +20,7 @@ from .validator import validate_batch
 try:  # installed distribution metadata is the single source of truth
     __version__ = _distribution_version("mcp-evidence-validator")
 except PackageNotFoundError:  # running from a source tree that is not installed
-    __version__ = "0.3.0"
+    __version__ = "0.4.0"
 __all__ = [
     "canonical_json",
     "fingerprint",

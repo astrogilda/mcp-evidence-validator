@@ -1,28 +1,35 @@
 {
   "annotations": [
     {
-      "bound_contract": "sha256:4179ea58e90e8863ce03d4d598068d8a6b70c422a7bae7e274afa553e6fb784d",
+      "bound_contract": "sha256:55c289504d413265ace4b390583541b36acee27f544eb8005c607e99545a5684",
       "id": "ann-read_text_file",
       "statement": "client bound to the contract declared at @modelcontextprotocol/server-filesystem@2026.1.14",
       "tool": "read_text_file"
     },
     {
-      "bound_contract": "sha256:8d6115d84b825add121fc28246cd571573df433a7da74908117aec5a4664eb92",
+      "bound_contract": "sha256:ca0b13d40709abde36858197c7d30b884117d5dc85c348678a0094e85af38b80",
       "id": "ann-read_media_file",
       "statement": "client bound to the contract declared at @modelcontextprotocol/server-filesystem@2026.1.14",
       "tool": "read_media_file"
     },
     {
-      "bound_contract": "sha256:3b5457ad2e827cd84c2597bb7b2a0f1c5affad3884072aa9a349976566c653b5",
+      "bound_contract": "sha256:9d2c08a83adb8c4fa5323ced36058fdbb25341e0f8428cb54e0b14255511ff60",
       "id": "ann-get_file_info",
       "statement": "client bound to the contract declared at @modelcontextprotocol/server-filesystem@2026.1.14",
       "tool": "get_file_info"
     }
   ],
+  "contract_recipe": "2",
   "declared_at": "2026-09-13T11:57:46Z",
   "server": "secure-filesystem-server",
   "tools": [
     {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": false
+      },
+      "contract_recipe": "2",
       "description": "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -37,9 +44,26 @@
         "type": "object"
       },
       "name": "create_directory",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -61,9 +85,28 @@
         "type": "object"
       },
       "name": "directory_tree",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "contract_recipe": "2",
       "description": "Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -104,9 +147,26 @@
         "type": "object"
       },
       "name": "edit_file",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -121,9 +181,26 @@
         "type": "object"
       },
       "name": "get_file_info",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Returns the list of directories that this server is allowed to access. Subdirectories within these allowed directories are also accessible. Use this to understand which directories and their nested paths are available before trying to access files.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -131,9 +208,26 @@
         "type": "object"
       },
       "name": "list_allowed_directories",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -148,9 +242,26 @@
         "type": "object"
       },
       "name": "list_directory",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -174,9 +285,28 @@
         "type": "object"
       },
       "name": "list_directory_with_sizes",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false
+      },
+      "contract_recipe": "2",
       "description": "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -195,9 +325,26 @@
         "type": "object"
       },
       "name": "move_file",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Read the complete contents of a file as text. DEPRECATED: Use read_text_file instead.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -220,9 +367,26 @@
         "type": "object"
       },
       "name": "read_file",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Read an image or audio file. Returns the base64 encoded data and MIME type. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -237,9 +401,51 @@
         "type": "object"
       },
       "name": "read_media_file",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "type": "string"
+                },
+                "mimeType": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "image",
+                    "audio",
+                    "blob"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "data",
+                "mimeType"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -259,9 +465,26 @@
         "type": "object"
       },
       "name": "read_multiple_files",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Read the complete contents of a file from the file system as text. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Operates on the file as text regardless of extension. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -284,9 +507,26 @@
         "type": "object"
       },
       "name": "read_text_file",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "contract_recipe": "2",
       "description": "Recursively search for files and directories matching a pattern. The patterns should be glob-style patterns that match paths relative to the working directory. Use pattern like '*.ext' to match files in current directory, and '**/*.ext' to match files in all subdirectories. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -312,9 +552,28 @@
         "type": "object"
       },
       "name": "search_files",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     },
     {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "readOnlyHint": false
+      },
+      "contract_recipe": "2",
       "description": "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.",
       "input_schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -333,6 +592,19 @@
         "type": "object"
       },
       "name": "write_file",
+      "output_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "type": "object"
+      },
       "permissions": []
     }
   ]

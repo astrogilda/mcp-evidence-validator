@@ -6,13 +6,27 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-13
+
 ### Added
-- `examples/filesystem-server-declared.json` and `examples/filesystem-server-observed.json`: a declared-vs-observed pair captured from a real MCP server, `@modelcontextprotocol/server-filesystem`, declaring `2026.1.14` and observing `2026.8.31`. One finding: `read_media_file`'s contract changed between the two releases (closes [#17](https://github.com/narko4u/mcp-evidence-validator/issues/17)).
+- **Contract recipes.** A contract hash now travels with the recipe that produced it: a declaration states `contract_recipe`, an observation may state the recipe its `contract_hash` was computed under, the report's `summary` lists every recipe in play, and `verify` prints them for a ledger. Recipe 2 folds the declared output schema and the tool's MCP annotation hints into the contract; recipe 1 is the original four fields (`name`, `description`, `input_schema`, `permissions`).
+- A `recipe_mismatch` check: an observation whose recipe differs from the declaration's is refused rather than reported as drift, because two hashes computed different ways are not evidence of change in either direction.
+- `examples/rebuild_pair.py`: re-derives a committed example pair, and the per-call hashes in its capture, from the raw `tools/list` replies. No Node.js, no network.
+- `NOTICE`: attribution for the Apache-2.0 licence.
+- `examples/filesystem-server-declared.json` and `examples/filesystem-server-observed.json`: a declared-vs-observed pair captured from a real MCP server, `@modelcontextprotocol/server-filesystem`, declaring `2026.1.14` and observing `2026.8.31` (closes [#17](https://github.com/narko4u/mcp-evidence-validator/issues/17)).
 - `examples/capture_mcp_server.py`: starts a published MCP server over stdio, records `tools/list` and real `tools/call` replies, and writes the pair. The raw replies are committed under `examples/captures/`.
-- `tests/test_filesystem_example.py`: recomputes every contract hash in the pair from the raw captures, runs the pair through the validator and the CLI, and pins what the contract does not cover (`outputSchema` changed in this example while `input_schema` did not).
+- `tests/test_filesystem_example.py`: recomputes every contract hash in the pair from the raw captures, runs the pair through the validator and the CLI, and asserts the pair is exactly what the captures derive.
+- Tests: legacy declarations still hash under recipe 1, recipe 2 covers an output-schema-only and an annotation-only change, recipe precedence, rejection of unknown recipes, recipe mismatch, and the recipe-1 blindness that motivated the change — pinned rather than deleted.
 
 ### Changed
-- README: covered server types listed with their provenance; the project-status note no longer claims every example is fictional, since one is now a real capture.
+- **Recipe 2 is the default for new declarations.** A declaration that states no recipe keeps hashing under recipe 1, so every ledger issued before this release still verifies and nothing already published changes meaning.
+- Ledger format `0.2` → `0.3`. Additive: block shape, the chain, and the dump/load round trip are unchanged, and a `0.2` ledger still loads and still verifies.
+- The filesystem example pair is hashed under recipe 2, with every contract hash re-derived from the raw captures. It reports **three** findings where it previously reported one: the `2026.8.31` release added an `openWorldHint` annotation to every tool it serves, which moved the contracts of `read_text_file` and `get_file_info` while leaving them byte-identical under recipe 1.
+- README: example table gained a recipe column; the filesystem example's finding count and its cause are stated; new "Contract recipes" section; owner and related-work context.
+- `docs/DESIGN.md`: new §2.2.1 on recipes and migration, a recipe-mismatch row in the check table, ledger self-description notes, and component paths corrected from the prototype layout to `src/`.
+
+### Fixed
+- The contract no longer misses a server that changes only what it returns, or only the hints it publishes about its own side effects — the gap reported in [#23](https://github.com/narko4u/mcp-evidence-validator/issues/23).
 
 ## [0.3.0] - 2026-09-13
 

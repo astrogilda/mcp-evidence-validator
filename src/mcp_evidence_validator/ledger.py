@@ -25,8 +25,12 @@ GENESIS = "sha256:" + ("0" * 64)
 #: the command-line interface has no way to produce it.
 UNANCHORED = "unanchored"
 
+#: The ledger *format* version. It is independent of ``CONTRACT_RECIPE_*``: the
+#: format says how blocks are shaped, the records say how their contract hashes
+#: were computed. A ledger written under 0.2 stays verifiable as-is - the chain
+#: covers its own records, and those records state what they are.
 LEDGER_NAME = "mcp-evidence-validator"
-LEDGER_VERSION = "0.2"
+LEDGER_VERSION = "0.3"
 
 
 class Ledger:
