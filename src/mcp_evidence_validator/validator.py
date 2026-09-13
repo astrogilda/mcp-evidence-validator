@@ -14,7 +14,11 @@ assumed:
 * a declaration states ``contract_recipe`` (manifest level, overridable per
   tool),
 * an observation may state the ``contract_recipe`` its ``contract_hash`` was
-  computed under.
+  computed under, and one that states none is read as recipe 1 for the same
+  reason a silent declaration is: silence is not "unknown recipe", it is what a
+  ledger issued before 0.4.0 looks like. Reading it as unknown would skip the
+  comparability check below and report two hashes that differ only by
+  construction as contract drift.
 
 A declaration that states no recipe is recipe 1 - the four-field contract that
 every ledger issued before 0.4.0 carries. Legacy declarations must keep hashing
@@ -150,27 +154,44 @@ def validate_batch(
         recipes_in_use.add(tool_recipe)
         current = build_contract(decl, tool_recipe)
         observed_hash = obs.get("contract_hash")
-        observed_recipe = obs.get("contract_recipe")
+        stated_recipe = obs.get("contract_recipe")
+        # An observation that states no recipe is read the way a silent
+        # declaration is: as recipe 1, the coverage every artifact written
+        # before 0.4.0 was hashed under. Treating silence as "unknown" skipped
+        # this guard entirely and reported the two hashes as contract drift,
+        # which is a false accusation against an intact ledger.
+        observed_recipe = check_recipe(stated_recipe or CONTRACT_RECIPE_LEGACY)
+        recipes_in_use.add(observed_recipe)
         anns = ann_by_tool.get(tool_name, [])
         bound = any(a.get("bound_contract") == current for a in anns)
 
         comparable = True
-        if observed_recipe is not None and check_recipe(observed_recipe) != tool_recipe:
+        if observed_recipe != tool_recipe:
             # The two sides were hashed under different recipes, so a
             # comparison would report drift that is really a recipe change.
             # Refuse the verdict instead of guessing which side is right.
+            detail = (
+                f"observed contract hash was computed under recipe "
+                f"{observed_recipe}, the declaration is recipe "
+                f"{tool_recipe}; the two are not comparable"
+            )
+            if stated_recipe is None:
+                detail += (
+                    f". The observation states no recipe, so it is read as "
+                    f"recipe {CONTRACT_RECIPE_LEGACY}, which is what a ledger "
+                    f"issued before 0.4.0 carries. To judge that ledger under "
+                    f"the recipe that produced it, state contract_recipe "
+                    f"{CONTRACT_RECIPE_LEGACY!r} on the declaration."
+                )
             findings.append(
                 {
                     "observation_index": obs.get("index", 0),
                     "check": "recipe_mismatch",
                     "severity": "high",
-                    "detail": (
-                        f"observed contract hash was computed under recipe "
-                        f"{observed_recipe}, the declaration is recipe "
-                        f"{tool_recipe}; the two are not comparable"
-                    ),
+                    "detail": detail,
                     "declared_recipe": tool_recipe,
                     "observed_recipe": observed_recipe,
+                    "observed_recipe_stated": stated_recipe is not None,
                 }
             )
             comparable = False

@@ -78,16 +78,20 @@ def test_the_pair_carries_the_captured_manifests():
     declared, observed = example_pair()
 
     assert declared["server"] == declared_raw["server_info"]["name"]
-    assert observed["server"] == observed_raw["server_info"]["name"]
+    assert observed["server"] == calls_raw["server_info"]["name"]
     assert {tool["name"]: tool for tool in declared["tools"]} == served_tools(declared_raw)
 
+    # The observed side derives from the manifest the *call* session served, so
+    # the capture must carry it: a separate tools/list session is provenance,
+    # not the declaration those calls ran under.
+    call_session = served_tools(calls_raw)
     for observation, raw_call in zip(
         observed["observations"], calls_raw["calls"], strict=True
     ):
         assert observation["tool"] == raw_call["tool"]
         assert observation["observed_at"] == raw_call["observed_at"]
         assert observation["contract_hash"] == build_contract(
-            served_tools(observed_raw)[raw_call["tool"]]
+            call_session[raw_call["tool"]]
         )
         # Arguments are recorded relative to the server's allowed root; the raw
         # capture holds the byte-exact ones.
@@ -97,6 +101,43 @@ def test_the_pair_carries_the_captured_manifests():
             else value
             for key, value in raw_call["args"].items()
         }
+
+
+def test_the_call_session_manifest_agrees_with_the_tools_list_session():
+    """Both sessions are recorded, and this capture shows them agreeing.
+
+    The calls were made against one session and a separate tools/list session
+    listed the same version. The pair claims the call session's declaration, so
+    if the two ever disagreed for a called tool, the evidence for that would
+    live here rather than being averaged away.
+    """
+    _, observed_raw, calls_raw = captures()
+    flat = {tool["name"]: to_declared(tool) for tool in observed_raw["tools"]}
+    call_session = {tool["name"]: to_declared(tool) for tool in calls_raw["tools"]}
+
+    for call in calls_raw["calls"]:
+        name = call["tool"]
+        assert name in flat, f"{name} was called but the tools/list session lacked it"
+        assert build_contract(call_session[name]) == build_contract(flat[name])
+        # The call-time hash the session recorded is the same value, so the
+        # stored evidence and the derivation cannot disagree silently.
+        assert call["contract_hash"] == build_contract(call_session[name])
+
+
+def test_a_capture_without_its_call_session_manifest_is_refused():
+    """A capture that cannot supply its own session's manifest stops the build.
+
+    Previously the per-call manifest was taken from the tools/list session
+    whatever the call session had served. A server may vary its declaration per
+    session, so that could assert a contract the call never ran under; the
+    fallback is now a refusal to derive, not a guess.
+    """
+    import pytest
+
+    declared_raw, observed_raw, calls_raw = captures()
+    stripped = {key: value for key, value in calls_raw.items() if key != "tools"}
+    with pytest.raises(SystemExit, match="call-session manifests"):
+        build_pair(declared_raw, observed_raw, stripped, PACKAGE, DECLARED_VERSION)
 
 
 def test_the_pair_is_exactly_what_the_captures_derive():

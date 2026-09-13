@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-13
+
+### Fixed
+- A silent observation is no longer reported as contract drift. An observation written before v0.4.0 carries no `contract_recipe`, and the comparability guard only fired when a recipe was stated — so an intact pre-v0.4.0 ledger compared against a recipe-2 declaration came back with a `contract_mutated` finding against every observation it held. Silence is now read the way a silent declaration is read, as recipe 1, and the comparison is refused with a `recipe_mismatch` finding that names the one-line change which judges that ledger under the recipe that produced it.
+- The report `summary` lists every recipe the ledger holds, not only the declaration's. A refused comparison was summarised as `["2"]` while the evidence it summarised contained a recipe-1 hash.
+- Per-call contract hashes are derived from the manifest the **call session** served. `examples/capture_mcp_server.py` persists that session's manifest beside the calls and `build_pair` derives from it; a capture that cannot supply its own session's manifest stops the derivation instead of borrowing a `tools/list` session's declaration, which could assert a contract the call never ran under.
+
+### Changed
+- `examples/captures/filesystem-server-2026.8.31.calls.json` carries the manifest its own session served (`tools`). The capture was re-taken from the real `@modelcontextprotocol/server-filesystem@2026.8.31`, and every contract hash it yields is unchanged from v0.4.0: what moved is the provenance of the evidence, not the evidence.
+- README and `docs/DESIGN.md`: the recipe rules are three, now covering silent observations and the refusal path.
+
+All three reported by automated review of [#25](https://github.com/narko4u/mcp-evidence-validator/pull/25).
+
 ## [0.4.0] - 2026-09-13
 
 ### Added

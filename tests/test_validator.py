@@ -245,7 +245,72 @@ def test_a_recipe_mismatch_is_reported_not_guessed():
     assert findings[0]["severity"] == "high"
     assert findings[0]["declared_recipe"] == "2"
     assert findings[0]["observed_recipe"] == "1"
-    assert summary["contract_recipes"] == ["2"]
+    assert findings[0]["observed_recipe_stated"] is True
+    # The summary reports every recipe the ledger actually holds, not just the
+    # one the declaration was written under: this ledger carries a hash made
+    # under recipe 1, and an operator reading "recipes: 2" would not know that.
+    assert summary["contract_recipes"] == ["1", "2"]
+
+
+def test_a_silent_observation_is_read_as_the_legacy_recipe():
+    """A ledger issued before 0.4.0 states no recipe. That means recipe 1.
+
+    Reading silence as "unknown" left the comparability guard unarmed, so an
+    intact pre-0.4.0 ledger compared against a recipe-2 declaration came back
+    as contract drift - the tool accusing honest evidence of mutation. Silence
+    now reads the way a silent declaration reads, and the finding carries the
+    one-line change that lets the ledger be judged under its own recipe.
+    """
+    tool = dict(DECLARED["tools"][0], contract_recipe="2")
+    decl = {
+        "server": DECLARED["server"],
+        "declared_at": DECLARED["declared_at"],
+        "contract_recipe": "2",
+        "tools": [tool],
+        "annotations": [
+            {
+                "tool": "get_forecast",
+                "statement": "read-only forecast access",
+                "bound_contract": build_contract(tool, "2"),
+            }
+        ],
+    }
+    obs = {
+        "server": DECLARED["server"],
+        "observations": [
+            {
+                "index": 1,
+                "observed_at": "2026-08-02T12:00:00Z",
+                "tool": "get_forecast",
+                "args": {"city": "Townsville"},
+                # No contract_recipe at all: this is what a pre-0.4.0 ledger
+                # looks like, and its hash covers the four recipe-1 fields.
+                "contract_hash": build_contract(tool, "1"),
+            }
+        ],
+    }
+
+    findings, summary = validate_batch(decl, obs)
+    assert [f["check"] for f in findings] == ["recipe_mismatch"]
+    assert "contract_mutated" not in {f["check"] for f in findings}
+    assert findings[0]["severity"] == "high"
+    assert findings[0]["observed_recipe"] == "1"
+    assert findings[0]["observed_recipe_stated"] is False
+    assert "states no recipe" in findings[0]["detail"]
+    assert "state contract_recipe '1' on the declaration" in findings[0]["detail"]
+    assert summary["contract_recipes"] == ["1", "2"]
+
+    # Control: the same silent ledger judged by a legacy declaration is intact,
+    # not drifted. Backward compatibility is the whole point of the default.
+    legacy_tool = dict(tool, contract_recipe="1")
+    legacy_decl = dict(decl, contract_recipe="1", tools=[legacy_tool])
+    legacy_decl["annotations"] = [
+        dict(a, bound_contract=build_contract(legacy_tool, "1"))
+        for a in decl["annotations"]
+    ]
+    findings_legacy, summary_legacy = validate_batch(legacy_decl, obs)
+    assert findings_legacy == []
+    assert summary_legacy["contract_recipes"] == ["1"]
 
 
 def test_cli_reports_the_recipe_the_evidence_carries(tmp_path, capsys):

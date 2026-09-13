@@ -157,13 +157,14 @@ A contract hash answers "has this declaration changed?" — which is only useful
 Where it lives:
 
 - a declaration states `contract_recipe` at the manifest level, and an individual tool can override it;
-- an observation may state the `contract_recipe` its `contract_hash` was computed under;
+- an observation may state the `contract_recipe` its `contract_hash` was computed under, and one that states none is read as recipe 1 — the same default a silent declaration gets;
 - the report's `summary` lists every recipe in play, and `verify` prints them for a ledger.
 
-Two rules make that safe rather than decorative:
+Three rules make that safe rather than decorative:
 
 1. **No silent reinterpretation.** A declaration that states no recipe is hashed under recipe 1, exactly as before — so ledgers issued before the recipe existed still verify, and nothing already published changes meaning. New declarations opt up by stating the recipe.
 2. **No guessing across recipes.** If an observation states a different recipe from the declaration's, the comparison is refused with a `recipe_mismatch` finding rather than reported as drift. Two hashes computed different ways are not evidence of change in either direction.
+3. **Silence means legacy, not unknown.** An observation that states no recipe was produced before recipes existed, so it is read as recipe 1 — and a pre-v0.4.0 ledger compared against a recipe-2 declaration is therefore refused, not reported as drift. The finding says so, and states the one-line change (`contract_recipe: "1"` on the declaration) that judges that ledger under the recipe that produced it.
 
 Migrating a pair between recipes re-derives every contract hash from the raw captures, never from a stored hash — which is why the example pair can be rebuilt offline:
 
@@ -178,7 +179,7 @@ The example in this repository shows what the wider recipe buys: two of its thre
 - **Bound, contract unmutated** - healthy baseline: annotation still matches the contract it was declared against.
 - **Bound, contract since mutated** - finding: the annotation was accurate at declaration time but is stale because the contract moved underneath it. Pairs with a review-scheduling gate.
 - **Observed outside declared scope** - finding: runtime behaviour exceeds what the declaration permits (arguments, tools, or permissions not present in the declaration).
-- **Recipe mismatch** - finding: the observed contract hash was computed under a different recipe from the declaration's, so the comparison is refused. High severity because it means the check could not run — not because the server did anything wrong.
+- **Recipe mismatch** - finding: the observed contract hash was computed under a different recipe from the declaration's (including an observation that states none, and is read as recipe 1), so the comparison is refused. High severity because it means the check could not run — not because the server did anything wrong.
 
 ## Roadmap
 

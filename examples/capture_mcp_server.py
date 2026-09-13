@@ -218,9 +218,19 @@ def capture_tools(package, version, root):
 
 
 def capture_calls(package, version, root, calls, recipe=CONTRACT_RECIPE_CURRENT):
+    """Capture calls, and the manifest the server served *in this session*.
+
+    The contract a call was made under is the declaration that session served,
+    so the served manifest is persisted beside the calls and is what the pair
+    derives its per-call hashes from. A separate ``tools/list`` session is
+    provenance, not the source: against a server whose declaration varies by
+    session, deriving call hashes from the other session would assert a
+    contract that was never in force when the call was made.
+    """
     session = Session(package, version, root).start()
     try:
-        served = {tool["name"]: tool for tool in session.tools()}
+        manifest = session.tools()
+        served = {tool["name"]: tool for tool in manifest}
         records = []
         for index, name in enumerate(calls, start=1):
             if name not in served:
@@ -244,7 +254,17 @@ def capture_calls(package, version, root, calls, recipe=CONTRACT_RECIPE_CURRENT)
                     "outcome": outcome,
                 }
             )
-        return records
+        return {
+            "package": package,
+            "version": version,
+            "captured_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "protocol_version": session.negotiated,
+            "server_info": session.server_info,
+            "root": str(root),
+            "contract_recipe": recipe,
+            "tools": manifest,
+            "calls": records,
+        }
     finally:
         session.close()
 
@@ -263,19 +283,36 @@ def build_pair(
     replies, never copied from a stored value: the served manifests are the
     source of truth and the pair is a view of them. That is what lets the pair
     be rebuilt offline under a different recipe without re-running the server.
+
+    The manifest a call was made under is the one served by the **call session**
+    (``calls_raw["tools"]``), not whatever a separate ``tools/list`` session
+    saw. A server may vary its declaration per session, and the observed side
+    claims what was in force when the call was made - deriving it from another
+    session would assert a contract that call never ran under.
     """
+    if "tools" not in calls_raw:
+        raise SystemExit(
+            "this calls capture does not carry the manifest its own session "
+            "served (it predates call-session manifests); re-run "
+            "examples/capture_mcp_server.py to regenerate the capture"
+        )
     calls = [record["tool"] for record in calls_raw["calls"]]
     declared_tools = {
         tool["name"]: to_declared(tool, recipe) for tool in declared_raw["tools"]
     }
-    observed_tools = {
-        tool["name"]: to_declared(tool, recipe) for tool in observed_raw["tools"]
+    call_tools = {
+        tool["name"]: to_declared(tool, recipe) for tool in calls_raw["tools"]
     }
 
     missing = [name for name in calls if name not in declared_tools]
     if missing:
         raise SystemExit(
             f"observed call(s) not declared at {declared_version}: {missing}"
+        )
+    unserved = [name for name in calls if name not in call_tools]
+    if unserved:
+        raise SystemExit(
+            f"call session manifest does not serve called tool(s): {unserved}"
         )
 
     declared = {
@@ -297,7 +334,9 @@ def build_pair(
         ],
     }
     observed = {
-        "server": observed_raw["server_info"].get("name", package),
+        "server": (calls_raw.get("server_info") or observed_raw["server_info"]).get(
+            "name", package
+        ),
         "contract_recipe": recipe,
         "observations": [
             {
@@ -306,7 +345,7 @@ def build_pair(
                 "tool": record["tool"],
                 "args": record["rel_args"],
                 "contract_hash": build_contract(
-                    observed_tools[record["tool"]], recipe
+                    call_tools[record["tool"]], recipe
                 ),
                 "contract_recipe": recipe,
             }
@@ -366,7 +405,7 @@ def main():
     declared, observed = build_pair(
         declared_raw,
         observed_raw,
-        {"calls": calls_raw},
+        calls_raw,
         args.package,
         args.declared_version,
         args.recipe,
@@ -377,6 +416,26 @@ def main():
     observed_tools = {tool["name"]: to_declared(tool, args.recipe)
                       for tool in observed_raw["tools"]}
 
+    # A server is free to vary its declaration per session, and the pair now
+    # records the call session's manifest for the calls it made. If a separate
+    # tools/list session saw something different for a tool that was called,
+    # say so: that gap is the kind of thing this tool exists to find, not to
+    # smooth over by deriving from whichever session is more convenient.
+    flat = {tool["name"]: tool for tool in observed_raw["tools"]}
+    call_manifest = {tool["name"]: tool for tool in calls_raw["tools"]}
+    varied = [
+        name
+        for name in calls
+        if name in flat
+        and build_contract(to_declared(flat[name], args.recipe), args.recipe)
+        != build_contract(to_declared(call_manifest[name], args.recipe), args.recipe)
+    ]
+    if varied:
+        print()
+        print(f"warning: the call session served a different declaration than the "
+              f"tools/list session for {sorted(varied)}")
+        print("         the pair records the call session's manifest for those calls.")
+
     declared_path = examples / f"{label}-declared.json"
     observed_path = examples / f"{label}-observed.json"
     declared_hash = write_json(declared_path, declared)
@@ -386,11 +445,7 @@ def main():
     raw_calls = captures / f"{label}-{args.observed_version}.calls.json"
     raw_declared_hash = write_json(raw_declared, declared_raw)
     raw_observed_hash = write_json(raw_observed, observed_raw)
-    raw_calls_hash = write_json(raw_calls, {"package": args.package,
-                                            "version": args.observed_version,
-                                            "root": str(root),
-                                            "contract_recipe": args.recipe,
-                                            "calls": calls_raw})
+    raw_calls_hash = write_json(raw_calls, calls_raw)
 
     drift = sorted(
         name
@@ -408,7 +463,7 @@ def main():
     print(f"tools whose contract changed between the two versions: "
           f"{drift or 'none (this pair would show no contract_mutated finding)'}")
     for name in calls:
-        record = next(r for r in calls_raw if r["tool"] == name)
+        record = next(r for r in calls_raw["calls"] if r["tool"] == name)
         print(f"  {name}: isError={record['outcome']['isError']} "
               f"content={record['outcome']['content_types']}")
 
