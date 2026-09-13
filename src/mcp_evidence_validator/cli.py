@@ -19,7 +19,12 @@ from typing import Any
 
 from . import __version__
 from .ledger import UNANCHORED, Ledger
-from .validator import validate_batch
+from .validator import (
+    CONTRACT_RECIPE_CURRENT,
+    CONTRACT_RECIPE_LEGACY,
+    CONTRACT_RECIPE_NOTES,
+    validate_batch,
+)
 
 
 def load_json(path: str) -> dict[str, Any]:
@@ -30,6 +35,14 @@ def load_json(path: str) -> dict[str, Any]:
 def cmd_validate(args: argparse.Namespace) -> int:
     declared = load_json(args.declared)
     observed = load_json(args.observed)
+
+    if declared.get("contract_recipe") is None:
+        print(
+            f"note: declaration states no contract_recipe; hashing under recipe "
+            f"{CONTRACT_RECIPE_LEGACY} ({CONTRACT_RECIPE_NOTES[CONTRACT_RECIPE_LEGACY]}). "
+            f"New declarations should state {CONTRACT_RECIPE_CURRENT!r}.",
+            file=sys.stderr,
+        )
 
     led = Ledger()
     led.append("declaration", declared)
@@ -75,10 +88,22 @@ def cmd_verify(args: argparse.Namespace) -> int:
         return 1
 
     types = {}
+    recipes = set()
     for block in led:
         types[block["type"]] = types.get(block["type"], 0) + 1
+        record = block.get("record")
+        if isinstance(record, dict):
+            if record.get("contract_recipe"):
+                recipes.add(record["contract_recipe"])
+            summary = record.get("summary")
+            if isinstance(summary, dict):
+                recipes.update(summary.get("contract_recipes") or [])
     print(f"ledger intact: {len(led)} blocks, chain verified against the expected head")
     print("block types:", json.dumps(types, sort_keys=True))
+    if recipes:
+        # The recipe is what makes a contract hash interpretable, so it is
+        # reported as part of verifying the evidence rather than left implicit.
+        print("contract recipes:", ", ".join(sorted(recipes)))
     return 0
 
 

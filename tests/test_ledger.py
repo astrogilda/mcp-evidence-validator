@@ -48,7 +48,11 @@ def test_roundtrip_dump_load(tmp_path):
     led.dump(str(out))
     data = json.loads(out.read_text())
     assert data["ledger"] == "mcp-evidence-validator"
-    assert data["version"] == "0.2"
+    # Ledger format 0.3. The chain, block shape and dump/load round trip are
+    # unchanged; the bump records that the records a 0.3 validator writes carry
+    # a contract recipe next to every contract hash. A 0.2 ledger still loads
+    # and still verifies - nothing about the old format was reinterpreted.
+    assert data["version"] == "0.3"
     loaded = Ledger.load(str(out))
     assert len(loaded) == 1
     assert loaded.verify(UNANCHORED) == []

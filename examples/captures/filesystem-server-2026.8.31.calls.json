@@ -4,7 +4,8 @@
       "args": {
         "path": "/tmp/mcp-capture-root/sample.txt"
       },
-      "contract_hash": "sha256:4179ea58e90e8863ce03d4d598068d8a6b70c422a7bae7e274afa553e6fb784d",
+      "contract_hash": "sha256:931d9d1105086a83bbfe253b8d26e5b74cf065a191a384030332bd5d9dedf664",
+      "contract_recipe": "2",
       "index": 1,
       "observed_at": "2026-09-13T11:57:54Z",
       "outcome": {
@@ -27,7 +28,8 @@
       "args": {
         "path": "/tmp/mcp-capture-root/pixel.png"
       },
-      "contract_hash": "sha256:3858b439c9f08013fa561f47de5901359dcad2d04c962d1ee065e658750e2f29",
+      "contract_hash": "sha256:ca2dadfaef32cdc9599ecfd8cf88bb69e59d3c57a04d1612675ddc8c8f43bb5d",
+      "contract_recipe": "2",
       "index": 2,
       "observed_at": "2026-09-13T11:57:54Z",
       "outcome": {
@@ -50,7 +52,8 @@
       "args": {
         "path": "/tmp/mcp-capture-root/sample.txt"
       },
-      "contract_hash": "sha256:3b5457ad2e827cd84c2597bb7b2a0f1c5affad3884072aa9a349976566c653b5",
+      "contract_hash": "sha256:51b986f18bc21444f202670591a7d734721a24aeb5316b0d8cf94ebe076d390f",
+      "contract_recipe": "2",
       "index": 3,
       "observed_at": "2026-09-13T11:57:54Z",
       "outcome": {
@@ -70,6 +73,7 @@
       "tool": "get_file_info"
     }
   ],
+  "contract_recipe": "2",
   "package": "@modelcontextprotocol/server-filesystem",
   "root": "/tmp/mcp-capture-root",
   "version": "2026.8.31"
