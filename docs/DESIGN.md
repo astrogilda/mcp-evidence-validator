@@ -63,14 +63,17 @@ The recipe is therefore carried in the evidence, not assumed:
 
 Why recipe 2 exists: recipe 1 could not see a server that changed only what it returns, or only the hints it publishes about its own side effects (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`). A tool whose input schema and description are stable while its output schema widens — or while it starts declaring itself destructive — reported healthy. That is issue #23, and it is pinned as a test rather than fixed quietly.
 
-Two rules keep the migration honest:
+Three rules keep the migration honest:
 
 1. **Legacy keeps its meaning.** A declaration that states no recipe is hashed under recipe 1, exactly as it was before recipes existed. Every ledger issued before v0.4.0 still verifies and nothing already published changes meaning; new declarations opt up by stating `contract_recipe`.
 2. **Recipes are never mixed.** If an observation states a different recipe from the declaration's, the comparison is refused with a `recipe_mismatch` finding instead of reported as drift. Two hashes computed different ways are not evidence of change in either direction, and quietly re-deriving one side to force a verdict would be worse than the gap it closes.
+3. **Silence is legacy, not unknown.** An observation that states no recipe is read as recipe 1, the same default a silent declaration gets: that is what every artifact written before recipes existed carries. Reading that silence as "unknown recipe" left rule 2 unarmed, so an intact pre-0.4.0 ledger compared against a recipe-2 declaration came back as `contract_mutated` — drift reported where nothing had drifted. The `recipe_mismatch` finding now names the declaration change that judges such a ledger under the recipe that produced it.
 
 Precedence: an explicit argument to `build_contract`, then the tool's own `contract_recipe`, then the manifest's, then recipe 1.
 
 Contract hashes in the committed example pair were migrated by re-deriving them from the raw `tools/list` captures (`examples/rebuild_pair.py`), never by copying stored values. That is the general migration path: raw captures are the source of truth, pairs are a view of them, and a pair that disagrees with its captures fails the test suite.
+
+The manifest a call is judged under is the one its **own session** served, and that session's manifest is persisted beside the calls (`calls.json` carries `tools`). A separate `tools/list` session is provenance, not the source: a server may vary its declaration per session, and deriving a per-call hash from another session would assert a contract the call never ran under. A capture that cannot supply its own session's manifest stops the derivation rather than borrowing another session's declaration.
 
 ### 2.3 Observations
 
@@ -98,7 +101,7 @@ A finding is a measured gap. Three prototype checks:
 | Bound and unmutated | annotation exists AND observed contract hash == bound hash | **healthy baseline** |
 | Bound, contract mutated | annotation exists BUT observed contract hash != bound hash | **finding: stale annotation** |
 | Observed outside declared scope | tool call uses tools/args/permissions not in the declaration | **finding: scope violation** |
-| Recipe mismatch | observation states a recipe other than the declaration's | **finding: check could not run** |
+| Recipe mismatch | observation states a recipe other than the declaration's, or states none and is therefore read as recipe 1 | **finding: check could not run** |
 
 A finding is never an accusation. It is a signal to schedule review: if an annotation is stale, re-verify it; if a scope is violated, decide whether the declaration or the runtime is wrong.
 
@@ -115,7 +118,7 @@ Properties:
 - Any mutation to a past record changes its hash and therefore every later block.
 - Verification is O(n) and requires only the ledger file.
 - The ledger can be anchored externally (published hash, timestamped) for non-repudiation.
-- Records carry how their own hashes were produced: a declaration states its `contract_recipe`, and observations may state the recipe their `contract_hash` was computed under. A ledger therefore says what its contract hashes mean, rather than leaving that to whoever reads it later.
+- Records carry how their own hashes were produced: a declaration states its `contract_recipe`, and observations may state the recipe their `contract_hash` was computed under. An observation that states none is read as recipe 1, the same default a silent declaration gets. A ledger therefore says what its contract hashes mean, rather than leaving that to whoever reads it later.
 - Format version `0.3` (was `0.2`). The bump is additive: block shape, the chain, and the dump/load round trip are unchanged, and a ledger written under `0.2` still loads and still verifies. The separate assertion a `0.2` ledger makes — that its records state no recipe and were therefore hashed under recipe 1 — is preserved by that default.
 
 ## 3. Architecture
