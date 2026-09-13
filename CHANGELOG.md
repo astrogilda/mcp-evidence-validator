@@ -6,6 +6,18 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-13
+
+### Fixed
+- A scope-only observation is no longer assigned a recipe. The v0.4.1 default read *every* observation that states no recipe as recipe 1, including one that carries no `contract_hash` at all — so a scope-only observation on a recipe-2 declaration produced a high-severity `recipe_mismatch` asserting that a hash the evidence never carried had been "computed under recipe 1", and the summary counted that recipe as if the ledger held one. The inference now stops at the hash: no hash, no recipe claim, no verdict. Arguments on such observations are still checked against the declared input schema.
+- The summary counts a recipe stated on an observation for a tool the declaration does not carry. Recipe handling ran after the undeclared-tool branch returned, so a ledger holding a recipe-1 hash on an undeclared tool was summarised as `["2"]`, contradicting the v0.4.1 guarantee that the summary lists every recipe the evidence holds.
+- An unknown recipe is rejected on that path too. The same early return let `contract_recipe: "9"` on an undeclared-tool observation skip `check_recipe` entirely.
+
+### Changed
+- README and `docs/DESIGN.md`: the recipe rules are four. Rule 3 now states that the legacy default applies *where a hash exists to interpret*, and rule 4 states that a stated recipe is read wherever it appears.
+
+All three reported by automated review of [#27](https://github.com/narko4u/mcp-evidence-validator/pull/27), which reviewed the v0.4.1 fix itself: two were introduced by that fix, and the validation bypass sat on the same path.
+
 ## [0.4.1] - 2026-09-13
 
 ### Fixed

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-evidence-validator"
-version = "0.4.1"
+version = "0.4.2"
 description = "Validate what an MCP server declares against what it actually does, with a tamper-evident SHA-256 evidence ledger."
 readme = "README.md"
 requires-python = ">=3.10"
