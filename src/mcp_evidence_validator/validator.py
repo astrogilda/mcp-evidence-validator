@@ -147,6 +147,26 @@ def validate_batch(
         observed_recipe = (
             check_recipe(stated_recipe) if stated_recipe is not None else None
         )
+        observed_hash = obs.get("contract_hash")
+        # An observation that states no recipe but carries a hash is read the
+        # way a silent declaration is: as recipe 1, the coverage every artifact
+        # written before 0.4.0 was hashed under. Treating silence as "unknown"
+        # skipped this guard entirely and reported the two hashes as contract
+        # drift, which is a false accusation against an intact ledger.
+        #
+        # A hash-less observation (scope only) makes no claim about a recipe,
+        # so nothing is inferred for it. A finding that a hash was "computed
+        # under recipe 1" would describe a hash the evidence does not carry,
+        # and check 3 already judges those observations on their arguments.
+        #
+        # This runs before the tool lookup, because a recipe is what makes a
+        # hash readable and an observation whose tool was never declared still
+        # holds one. Inferring it after the lookup left those observations out
+        # of the summary, which described a ledger as holding only the
+        # declaration's recipe while the evidence also held a hash made under
+        # another one.
+        if observed_hash is not None and observed_recipe is None:
+            observed_recipe = check_recipe(CONTRACT_RECIPE_LEGACY)
         if observed_recipe is not None:
             recipes_in_use.add(observed_recipe)
 
@@ -165,20 +185,6 @@ def validate_batch(
         tool_recipe = check_recipe(decl.get("contract_recipe") or manifest_recipe)
         recipes_in_use.add(tool_recipe)
         current = build_contract(decl, tool_recipe)
-        observed_hash = obs.get("contract_hash")
-        # An observation that states no recipe but carries a hash is read the
-        # way a silent declaration is: as recipe 1, the coverage every artifact
-        # written before 0.4.0 was hashed under. Treating silence as "unknown"
-        # skipped this guard entirely and reported the two hashes as contract
-        # drift, which is a false accusation against an intact ledger.
-        #
-        # A hash-less observation (scope only) makes no claim about a recipe,
-        # so nothing is inferred for it. A finding that a hash was "computed
-        # under recipe 1" would describe a hash the evidence does not carry,
-        # and check 3 already judges those observations on their arguments.
-        if observed_hash is not None and observed_recipe is None:
-            observed_recipe = check_recipe(CONTRACT_RECIPE_LEGACY)
-            recipes_in_use.add(observed_recipe)
         anns = ann_by_tool.get(tool_name, [])
         bound = any(a.get("bound_contract") == current for a in anns)
 
