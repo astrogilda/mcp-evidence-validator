@@ -481,3 +481,36 @@ def test_cli_warns_when_a_declaration_states_no_recipe(tmp_path, capsys):
     captured = capsys.readouterr()
     assert "states no contract_recipe" in captured.err
     assert "recipe 1" in captured.err
+
+
+def test_an_undeclared_tool_with_a_silent_hash_still_counts_its_recipe():
+    """An undeclared tool carrying a hash under no stated recipe is recipe 1.
+
+    The undeclared-tool branch returns before the hash-present legacy
+    inference runs, so an observation of this shape is left out of the
+    summary even though the evidence holds a hash that is only readable as
+    recipe 1. A ledger declaring recipe 2 is then described as holding
+    recipe 2 alone, which understates what the evidence holds.
+    """
+    tool = dict(DECLARED["tools"][0], contract_recipe="2")
+    decl = dict(DECLARED, contract_recipe="2", tools=[tool])
+    decl["annotations"] = [
+        dict(a, bound_contract=build_contract(tool, "2"))
+        for a in DECLARED["annotations"]
+    ]
+    obs = make_observed(
+        [
+            {
+                "index": 1,
+                "observed_at": "2026-08-02T12:00:00Z",
+                "tool": "never_declared",
+                "args": {},
+                # Carries a hash and states no recipe: the pre-0.4.0 shape.
+                "contract_hash": build_contract(tool, "1"),
+            }
+        ]
+    )
+
+    findings, summary = validate_batch(decl, obs)
+    assert [f["check"] for f in findings] == ["unknown_tool"]
+    assert summary["contract_recipes"] == ["1", "2"]
