@@ -182,6 +182,16 @@ The example in this repository shows what the wider recipe buys: two of its thre
 - **Observed outside declared scope** - finding: runtime behaviour exceeds what the declaration permits (arguments, tools, or permissions not present in the declaration).
 - **Recipe mismatch** - finding: the observed contract hash was computed under a different recipe from the declaration's (including an observation that states none, and is read as recipe 1), so the comparison is refused. High severity because it means the check could not run — not because the server did anything wrong.
 
+### Checking the checker
+
+Every check type above is a claim about what this validator would refuse, and the README gives a
+reader no way to test that claim. One external corpus exercises the same shape of question:
+[agent-evidence-vectors](https://github.com/astrogilda/agent-evidence-vectors), 461 vectors across 8
+corpora at tag v0.10.1. Each vector is a signed statement filed under accept or reject by the verdict
+a correct verifier must return, so running a validator over one produces a pass count. It does not
+cover MCP contract recipes and it sets no conformance requirement here. Treat it as the nearest
+available control for the declared-versus-observed ladder this validator sits on.
+
 ## Roadmap
 
 - [x] Installable package (v0.2, `mcp-ev-validate` CLI, `verify` subcommand)
