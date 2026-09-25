@@ -186,7 +186,7 @@ The example in this repository shows what the wider recipe buys: two of its thre
 
 Every check type above is a claim about what this validator would refuse, and the README gives a
 reader no way to test that claim. One external corpus exercises the same shape of question:
-[agent-evidence-vectors](https://github.com/astrogilda/agent-evidence-vectors), 461 vectors across 8
+[agent-evidence-vectors](https://github.com/probityai/agent-evidence-vectors), 461 vectors across 8
 corpora at tag v0.10.1. Each vector is a signed statement filed under accept or reject by the verdict
 a correct verifier must return, so running a validator over one produces a pass count. It does not
 cover MCP contract recipes and it sets no conformance requirement here. Treat it as the nearest
